@@ -6,5 +6,5 @@
     "precompiledReferences": [],
     "defineConstraints": [],
     "overrideReferences": false,
-    "autoReferenced": false
+    "autoReferenced": true
 }
