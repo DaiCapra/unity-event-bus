@@ -27,7 +27,7 @@ namespace Events.Runtime
 
             if (!_subscribers.ContainsKey(type))
             {
-                Debug.LogWarning($"{type.Name} has no subscriber!");
+                
                 return;
             }
 
@@ -46,8 +46,7 @@ namespace Events.Runtime
             {
                 _subscribers[type] = new List<EventInfo>();
             }
-
-
+            
             var wrapper = new Action<IEvent>(t => { action.Invoke((T) t); });
             var data = new EventInfo(wrapper, action.Method);
             
