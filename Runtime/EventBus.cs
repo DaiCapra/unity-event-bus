@@ -7,13 +7,16 @@ namespace Events.Runtime
 {
     public class EventBus
     {
-        public int NumberOfUniqueEvents => _subscribers.Count;
-
         private readonly Dictionary<Type, List<EventInfo>> _subscribers;
 
         public EventBus()
         {
             _subscribers = new Dictionary<Type, List<EventInfo>>();
+        }
+
+        public int Count()
+        {
+            return _subscribers.Count;
         }
 
         public void Trigger<T>() where T : IEvent
@@ -27,7 +30,6 @@ namespace Events.Runtime
 
             if (!_subscribers.ContainsKey(type))
             {
-                
                 return;
             }
 
@@ -46,10 +48,10 @@ namespace Events.Runtime
             {
                 _subscribers[type] = new List<EventInfo>();
             }
-            
+
             var wrapper = new Action<IEvent>(t => { action.Invoke((T) t); });
             var data = new EventInfo(wrapper, action.Method);
-            
+
             _subscribers[type].Add(data);
         }
 
@@ -70,6 +72,11 @@ namespace Events.Runtime
             foreach (var f in filter)
             {
                 actions.Remove(f);
+            }
+
+            if (actions.Count == 0)
+            {
+                _subscribers.Remove(type);
             }
         }
     }

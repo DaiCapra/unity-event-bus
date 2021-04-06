@@ -1,14 +1,14 @@
 ﻿using System;
+using System.Collections;
 using Events.Runtime;
+using Events.Tests.Examples;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Events.Tests.Editor
 {
-    public struct EventTest : IEvent
-    {
-    }
-
-    public class TestEventBus
+    public class TestEventBusEditor
     {
         private bool _test;
 
@@ -16,17 +16,17 @@ namespace Events.Tests.Editor
         public void Subscribe()
         {
             var eb = new EventBus();
-            eb.Subscribe<EventTest>(TestEventBusFoo);
-            Assert.AreEqual(eb.NumberOfUniqueEvents, 1);
+            eb.Subscribe<TestEvent>(TestEventBusFoo);
+            Assert.AreEqual(eb.Count(), 1);
         }
 
         [Test]
         public void Trigger()
         {
             var eb = new EventBus();
-            eb.Subscribe<EventTest>(TestEventBusFoo);
+            eb.Subscribe<TestEvent>(TestEventBusFoo);
             _test = false;
-            eb.Trigger<EventTest>();
+            eb.Trigger<TestEvent>();
             Assert.True(_test);
         }
 
@@ -34,20 +34,20 @@ namespace Events.Tests.Editor
         public void Unsubscribe()
         {
             var eb = new EventBus();
-            eb.Subscribe<EventTest>(TestEventBusFoo);
-            
+            eb.Subscribe<TestEvent>(TestEventBusFoo);
+
             _test = false;
-            eb.Trigger<EventTest>();
+            eb.Trigger<TestEvent>();
             Assert.True(_test);
-            
+
             _test = false;
-            eb.Unsubscribe<EventTest>(TestEventBusFoo);
-            eb.Trigger<EventTest>();
+            eb.Unsubscribe<TestEvent>(TestEventBusFoo);
+            eb.Trigger<TestEvent>();
             Assert.False(_test);
         }
 
 
-        private void TestEventBusFoo(EventTest obj)
+        private void TestEventBusFoo(TestEvent obj)
         {
             _test = true;
         }
