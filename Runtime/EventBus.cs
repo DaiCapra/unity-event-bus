@@ -43,7 +43,11 @@ namespace Events.Runtime
         public void Subscribe<T>(Action<T> action) where T : IEvent
         {
             var type = typeof(T);
+            Subscribe(type, action);
+        }
 
+        public void Subscribe<T>(Type type, Action<T> action) where T : IEvent
+        {
             if (!_subscribers.ContainsKey(type))
             {
                 _subscribers[type] = new List<EventInfo>();
