@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
 
 namespace Events.Runtime
 {
     public class EventBus
     {
-        private readonly Dictionary<Type, List<EventInfo>> _subscribers;
+        private readonly Dictionary<Type, EventData> _subscribers;
 
         public EventBus()
         {
-            _subscribers = new Dictionary<Type, List<EventInfo>>();
+            _subscribers = new Dictionary<Type, EventData>();
         }
 
         public int Count()
@@ -28,53 +26,67 @@ namespace Events.Runtime
         {
             var type = e.GetType();
 
-            if (!_subscribers.ContainsKey(type))
+            if (!_subscribers.TryGetValue(type, out var data))
             {
                 return;
             }
 
-            var subscribers = _subscribers[type];
-            foreach (var subscriber in subscribers)
+            foreach (var subscriber in data.Bindings)
             {
                 subscriber?.Target?.Invoke(e);
             }
         }
 
-        public void Subscribe<T>(Action<T> action) where T : IEvent
+        public void Subscribe<T>(object obj, Action<T> action) where T : IEvent
         {
-            var type = typeof(T);
-
-            if (!_subscribers.ContainsKey(type))
-            {
-                _subscribers[type] = new List<EventInfo>();
-            }
-
-            var wrapper = new Action<IEvent>(t => { action.Invoke((T) t); });
-            var data = new EventInfo(wrapper, action.Method);
-
-            _subscribers[type].Add(data);
-        }
-
-        public void Unsubscribe<T>(Action<T> action) where T : IEvent
-        {
-            var type = typeof(T);
-
-            if (!_subscribers.ContainsKey(type))
+            if (obj == null)
             {
                 return;
             }
 
-            var actions = _subscribers[type];
-            var filter = actions
-                .Where(t => t.Method.Equals(action.Method))
-                .ToList();
+            var type = typeof(T);
 
-            foreach (var f in filter)
+            if (!_subscribers.TryGetValue(type, out EventData data))
             {
-                actions.Remove(f);
+                data = new EventData();
+                _subscribers[type] = data;
             }
 
-            if (actions.Count == 0)
+
+            var d = new EventBinding
+            {
+                Target = t => { action.Invoke((T) t); },
+                Instance = obj,
+            };
+            data.Bindings.Add(d);
+        }
+
+        public void Unsubscribe<T>(object obj) where T : IEvent
+        {
+            if (obj == null)
+            {
+                return;
+            }
+
+            var type = typeof(T);
+
+            if (!_subscribers.TryGetValue(type, out var data))
+            {
+                return;
+            }
+
+            for (var index = 0; index < data.Bindings.Count; index++)
+            {
+                var binding = data.Bindings[index];
+                var t = binding.Instance;
+                if (t != null && t.Equals(obj))
+                {
+                    data.Bindings.RemoveAt(index);
+                    break;
+                }
+            }
+
+            if (data.Bindings.Count == 0)
             {
                 _subscribers.Remove(type);
             }

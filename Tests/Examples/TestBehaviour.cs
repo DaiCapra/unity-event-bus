@@ -7,12 +7,12 @@ namespace Events.Tests.Examples
     {
         public void Init()
         {
-            TestInstanceBus.InstanceBus?.Subscribe<TestEvent>(Foo);
+            TestInstanceBus.InstanceBus?.Subscribe<TestEvent>(this, Foo);
         }
 
         private void OnDestroy()
         {
-            TestInstanceBus.InstanceBus?.Unsubscribe<TestEvent>(Foo);
+            TestInstanceBus.InstanceBus?.Unsubscribe<TestEvent>(this);
         }
 
         private void Foo(TestEvent obj)
