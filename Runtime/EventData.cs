@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Events.Runtime
 {
     public class EventData
     {
-        public List<EventBinding> Bindings;
+        public ulong identity;
+        public readonly Dictionary<ulong, Binding> bindings;
 
         public EventData()
         {
-            Bindings = new List<EventBinding>();
+            bindings = new();
         }
     }
 }

@@ -1,95 +1,119 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Events.Runtime
 {
     public class EventBus
     {
+        private const int MaxHistoryCount = 100;
         private readonly Dictionary<Type, EventData> _subscribers;
 
         public EventBus()
         {
-            _subscribers = new Dictionary<Type, EventData>();
+            _subscribers = new();
+            History = new();
+            SaveHistory = true;
         }
 
-        public int Count()
+        public bool SaveHistory { get; set; }
+        public List<IEvent> History { get; }
+
+        public EventHandle Bind<T>(Action<T> action) where T : IEvent
         {
-            return _subscribers.Count;
-        }
-
-        public void Trigger<T>() where T : IEvent
-        {
-            Trigger(default(T));
-        }
-
-        public void Trigger(IEvent e)
-        {
-            var type = e.GetType();
-
-            if (!_subscribers.TryGetValue(type, out var data))
-            {
-                return;
-            }
-
-            foreach (var subscriber in data.Bindings)
-            {
-                subscriber?.Target?.Invoke(e);
-            }
-        }
-
-        public void Subscribe<T>(object obj, Action<T> action) where T : IEvent
-        {
-            if (obj == null)
-            {
-                return;
-            }
-
             var type = typeof(T);
-
-            if (!_subscribers.TryGetValue(type, out EventData data))
+            if (!_subscribers.TryGetValue(type, out var data))
             {
                 data = new EventData();
                 _subscribers[type] = data;
             }
 
-
-            var d = new EventBinding
+            var binding = new Binding
             {
-                Target = t => { action.Invoke((T) t); },
-                Instance = obj,
+                action = t => { action.Invoke((T)t); }
             };
-            data.Bindings.Add(d);
+
+            var id = data.identity;
+            data.identity++;
+
+            data.bindings.Add(id, binding);
+            return new() { id = id, type = type };
         }
 
-        public void Unsubscribe<T>(object obj) where T : IEvent
+        public void Unbind(EventHandle handle)
         {
-            if (obj == null)
+            var type = handle.type;
+            if (type == null)
             {
                 return;
             }
 
-            var type = typeof(T);
-
-            if (!_subscribers.TryGetValue(type, out var data))
+            if (_subscribers.ContainsKey(type))
             {
-                return;
-            }
+                var data = _subscribers[type];
+                data.bindings.Remove(handle.id);
 
-            for (var index = 0; index < data.Bindings.Count; index++)
-            {
-                var binding = data.Bindings[index];
-                var t = binding.Instance;
-                if (t != null && t.Equals(obj))
+                if (data.bindings.Count == 0)
                 {
-                    data.Bindings.RemoveAt(index);
-                    break;
+                    _subscribers.Remove(type);
                 }
             }
+        }
 
-            if (data.Bindings.Count == 0)
+        public void Trigger<T>() where T : IEvent, new()
+        {
+            var t = new T();
+            Trigger(t);
+        }
+
+        public bool HasHistoryAny<T>() where T : IEvent
+        {
+            return History.Any(t => t.GetType() == typeof(T));
+        }
+
+        public List<T> GetHistory<T>() where T : IEvent
+        {
+            return History
+                .Where(t => t.GetType() == typeof(T))
+                .Cast<T>()
+                .ToList();
+        } 
+        
+        public void Trigger<T>(T e) where T : IEvent
+        {
+            AddToHistory(e);
+
+            var type = e.GetType();
+            if (!_subscribers.ContainsKey(type))
             {
-                _subscribers.Remove(type);
+                return;
             }
+
+            var data = _subscribers[type];
+            foreach (var kv in data.bindings)
+            {
+                var binding = kv.Value;
+                binding.action?.Invoke(e);
+            }
+        }
+
+        private void AddToHistory<T>(T e) where T : IEvent
+        {
+            if (!SaveHistory)
+            {
+                return;
+            }
+
+            History.Add(e);
+            if (History.Count >= MaxHistoryCount)
+            {
+                History.RemoveAt(0);
+            }
+        }
+
+        public int Count()
+        {
+            return _subscribers.Count;
         }
     }
 }
