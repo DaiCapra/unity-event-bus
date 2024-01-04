@@ -6,7 +6,7 @@ namespace Events.Runtime
 {
     public class EventBus
     {
-        private const int MaxHistoryCount = 100;
+        public int MaxHistoryCount { get; set; }
         private readonly Dictionary<Type, EventData> _subscribers;
 
         public EventBus()
@@ -14,6 +14,7 @@ namespace Events.Runtime
             _subscribers = new();
             History = new();
             SaveHistory = true;
+            MaxHistoryCount = 100;
         }
 
         public bool SaveHistory { get; set; }
@@ -77,8 +78,8 @@ namespace Events.Runtime
                 .Where(t => t.GetType() == typeof(T))
                 .Cast<T>()
                 .ToList();
-        } 
-        
+        }
+
         public void Trigger<T>(T e) where T : IEvent
         {
             AddToHistory(e);
