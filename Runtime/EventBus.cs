@@ -6,7 +6,6 @@ namespace Events.Runtime
 {
     public class EventBus
     {
-        public int MaxHistoryCount { get; set; }
         private readonly Dictionary<Type, EventData> _subscribers;
 
         public EventBus()
@@ -17,28 +16,90 @@ namespace Events.Runtime
             MaxHistoryCount = 100;
         }
 
+        public int MaxHistoryCount { get; set; }
+
         public bool SaveHistory { get; set; }
         public List<IEvent> History { get; }
+
 
         public EventHandle Bind<T>(Action<T> action) where T : IEvent
         {
             var type = typeof(T);
-            if (!_subscribers.TryGetValue(type, out var data))
+
+            if (!_subscribers.TryGetValue(type, out var eventData))
             {
-                data = new EventData();
-                _subscribers[type] = data;
+                eventData = new();
+                _subscribers[type] = eventData;
             }
 
+
+            var id = eventData.identity++;
             var binding = new Binding
             {
+                identity = id,
                 action = t => { action.Invoke((T)t); }
             };
 
-            var id = data.identity;
-            data.identity++;
+            eventData.pendingSubscriptions.Add(binding);
 
-            data.bindings.Add(id, binding);
-            return new() { id = id, type = type };
+            var handle = new EventHandle { bindingId = id, type = type };
+            return handle;
+        }
+
+        public int Count()
+        {
+            return _subscribers.Count;
+        }
+
+        public int PendingSubscriberCount()
+        {
+            return _subscribers.Values.Sum(t => t.pendingSubscriptions.Count);
+        }
+
+        public List<T> GetHistory<T>() where T : IEvent
+        {
+            return History
+                .Where(t => t.GetType() == typeof(T))
+                .Cast<T>()
+                .ToList();
+        }
+
+        public bool HasHistoryAny<T>() where T : IEvent
+        {
+            return History.Any(t => t.GetType() == typeof(T));
+        }
+
+        public void Trigger<T>() where T : IEvent, new()
+        {
+            var t = new T();
+            Trigger(t);
+        }
+
+        public void Trigger<T>(T e) where T : IEvent
+        {
+            AddToHistory(e);
+
+            // Find the event data for the event type
+            var type = e.GetType();
+            if (!_subscribers.TryGetValue(type, out var eventData))
+            {
+                return;
+            }
+
+            // Add waiting subscriptions and clear queue
+            foreach (var binding in eventData.pendingSubscriptions)
+            {
+                eventData.bindings.Add(binding.identity, binding);
+            }
+
+            eventData.pendingSubscriptions.Clear();
+
+            // Trigger
+            foreach (var kv in eventData.bindings)
+            {
+                var binding = kv.Value;
+                binding.action?.Invoke(e);
+            }
         }
 
         public void Unbind(EventHandle handle)
@@ -51,50 +112,18 @@ namespace Events.Runtime
 
             if (_subscribers.ContainsKey(type))
             {
-                var data = _subscribers[type];
-                data.bindings.Remove(handle.id);
-
-                if (data.bindings.Count == 0)
+                var eventData = _subscribers[type];
+                
+                var didRemove = eventData.bindings.Remove(handle.bindingId);
+                if (!didRemove)
+                {
+                    eventData.pendingSubscriptions.RemoveAll(t => t.identity == handle.bindingId);
+                }
+                
+                if (eventData.bindings.Count == 0)
                 {
                     _subscribers.Remove(type);
                 }
-            }
-        }
-
-        public void Trigger<T>() where T : IEvent, new()
-        {
-            var t = new T();
-            Trigger(t);
-        }
-
-        public bool HasHistoryAny<T>() where T : IEvent
-        {
-            return History.Any(t => t.GetType() == typeof(T));
-        }
-
-        public List<T> GetHistory<T>() where T : IEvent
-        {
-            return History
-                .Where(t => t.GetType() == typeof(T))
-                .Cast<T>()
-                .ToList();
-        }
-
-        public void Trigger<T>(T e) where T : IEvent
-        {
-            AddToHistory(e);
-
-            var type = e.GetType();
-            if (!_subscribers.ContainsKey(type))
-            {
-                return;
-            }
-
-            var data = _subscribers[type];
-            foreach (var kv in data.bindings)
-            {
-                var binding = kv.Value;
-                binding.action?.Invoke(e);
             }
         }
 
@@ -110,11 +139,6 @@ namespace Events.Runtime
             {
                 History.RemoveAt(0);
             }
-        }
-
-        public int Count()
-        {
-            return _subscribers.Count;
         }
     }
 }

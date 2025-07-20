@@ -4,7 +4,7 @@ namespace Events.Runtime
 {
     public struct EventHandle
     {
-        public ulong id;
+        public ulong bindingId;
         public Type type;
     }
 }
