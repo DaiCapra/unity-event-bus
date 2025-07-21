@@ -5,11 +5,11 @@ namespace Events.Runtime
     public struct Binding : IEquatable<Binding>
     {
         public Action<IEvent> action;
-        public ulong identity;
+        public ulong id;
 
         public bool Equals(Binding other)
         {
-            return identity == other.identity;
+            return id == other.id;
         }
 
         public override bool Equals(object obj)
@@ -19,7 +19,7 @@ namespace Events.Runtime
 
         public override int GetHashCode()
         {
-            return identity.GetHashCode();
+            return id.GetHashCode();
         }
     }
 }

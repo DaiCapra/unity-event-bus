@@ -6,6 +6,6 @@ namespace Events.Runtime
     {
         public ulong identity;
         public readonly Dictionary<ulong, Binding> bindings = new();
-        public List<Binding> pendingSubscriptions = new();
+        public readonly List<Binding> pendingSubscriptions = new();
     }
 }

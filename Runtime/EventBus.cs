@@ -33,16 +33,15 @@ namespace Events.Runtime
             }
 
 
-            var id = eventData.identity++;
             var binding = new Binding
             {
-                identity = id,
+                id = eventData.identity++,
                 action = t => { action.Invoke((T)t); }
             };
 
             eventData.pendingSubscriptions.Add(binding);
 
-            var handle = new EventHandle { bindingId = id, type = type };
+            var handle = new EventHandle { bindingId = binding.id, type = type };
             return handle;
         }
 
@@ -89,7 +88,7 @@ namespace Events.Runtime
             // Add waiting subscriptions and clear queue
             foreach (var binding in eventData.pendingSubscriptions)
             {
-                eventData.bindings.Add(binding.identity, binding);
+                eventData.bindings.Add(binding.id, binding);
             }
 
             eventData.pendingSubscriptions.Clear();
@@ -113,14 +112,15 @@ namespace Events.Runtime
             if (_subscribers.ContainsKey(type))
             {
                 var eventData = _subscribers[type];
-                
+
                 var didRemove = eventData.bindings.Remove(handle.bindingId);
                 if (!didRemove)
                 {
-                    eventData.pendingSubscriptions.RemoveAll(t => t.identity == handle.bindingId);
+                    eventData.pendingSubscriptions.RemoveAll(t => t.id == handle.bindingId);
                 }
-                
-                if (eventData.bindings.Count == 0)
+
+                if (eventData.bindings.Count == 0 &&
+                    eventData.pendingSubscriptions.Count == 0)
                 {
                     _subscribers.Remove(type);
                 }
