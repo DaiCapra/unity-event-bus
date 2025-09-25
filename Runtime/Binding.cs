@@ -6,6 +6,7 @@ namespace Events.Runtime
     {
         public Action<IEvent> action;
         public ulong id;
+        public int priority;
 
         public bool Equals(Binding other)
         {

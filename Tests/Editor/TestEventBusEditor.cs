@@ -1,4 +1,6 @@
-﻿using Events.Runtime;
+﻿using System;
+using System.Collections.Generic;
+using Events.Runtime;
 using Events.Tests.Examples;
 using NUnit.Framework;
 
@@ -6,7 +8,8 @@ namespace Events.Tests
 {
     public class TestEventBusEditor
     {
-        private bool _test;
+        private bool _testA;
+        private bool _testB;
 
         private EventBus _eventBus;
 
@@ -41,10 +44,23 @@ namespace Events.Tests
         {
             _eventBus.Bind<TestEvent>(TestEventBusFoo);
 
-            _test = false;
+            _testA = false;
 
             _eventBus.Trigger<TestEvent>();
-            Assert.True(_test);
+            Assert.True(_testA);
+        }
+
+        [Test]
+        public void Priority()
+        {
+            var executionOrder = new List<int>();
+    
+            _eventBus.Bind<TestEvent>(_ => { executionOrder.Add(1); }, priority: 1);
+            _eventBus.Bind<TestEvent>(_ => { executionOrder.Add(2); }, priority: 2);
+            _eventBus.Bind<TestEvent>(_ => { executionOrder.Add(0); }, priority: 0);
+    
+            _eventBus.Trigger(new TestEvent());
+            Assert.That(executionOrder, Is.EqualTo(new List<int> { 2, 1, 0 }));
         }
 
         [Test]
@@ -52,16 +68,16 @@ namespace Events.Tests
         {
             var handle = _eventBus.Bind<TestEvent>(TestEventBusFoo);
 
-            _test = false;
+            _testA = false;
 
             _eventBus.Trigger<TestEvent>();
-            Assert.True(_test);
+            Assert.True(_testA);
 
-            _test = false;
+            _testA = false;
 
             _eventBus.Unbind(handle);
             _eventBus.Trigger<TestEvent>();
-            Assert.False(_test);
+            Assert.False(_testA);
         }
 
         [Test]
@@ -76,7 +92,7 @@ namespace Events.Tests
 
         private void TestEventBusFoo(TestEvent obj)
         {
-            _test = true;
+            _testA = true;
         }
     }
 }

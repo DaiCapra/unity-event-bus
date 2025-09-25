@@ -22,7 +22,7 @@ namespace Events.Runtime
         public List<IEvent> History { get; }
 
 
-        public EventHandle Bind<T>(Action<T> action) where T : IEvent
+        public EventHandle Bind<T>(Action<T> action, int priority = 0) where T : IEvent
         {
             var type = typeof(T);
 
@@ -36,7 +36,8 @@ namespace Events.Runtime
             var binding = new Binding
             {
                 id = eventData.identity++,
-                action = t => { action.Invoke((T)t); }
+                action = t => { action.Invoke((T)t); },
+                priority = priority
             };
 
             eventData.pendingSubscriptions.Add(binding);
@@ -50,11 +51,6 @@ namespace Events.Runtime
             return _subscribers.Count;
         }
 
-        public int PendingSubscriberCount()
-        {
-            return _subscribers.Values.Sum(t => t.pendingSubscriptions.Count);
-        }
-
         public List<T> GetHistory<T>() where T : IEvent
         {
             return History
@@ -66,6 +62,11 @@ namespace Events.Runtime
         public bool HasHistoryAny<T>() where T : IEvent
         {
             return History.Any(t => t.GetType() == typeof(T));
+        }
+
+        public int PendingSubscriberCount()
+        {
+            return _subscribers.Values.Sum(t => t.pendingSubscriptions.Count);
         }
 
         public void Trigger<T>() where T : IEvent, new()
@@ -85,18 +86,11 @@ namespace Events.Runtime
                 return;
             }
 
-            // Add waiting subscriptions and clear queue
-            foreach (var binding in eventData.pendingSubscriptions)
-            {
-                eventData.bindings.Add(binding.id, binding);
-            }
-
-            eventData.pendingSubscriptions.Clear();
+            AddPending(eventData);
 
             // Trigger
-            foreach (var kv in eventData.bindings)
+            foreach (var binding in eventData.bindings)
             {
-                var binding = kv.Value;
                 binding.action?.Invoke(e);
             }
         }
@@ -113,11 +107,8 @@ namespace Events.Runtime
             {
                 var eventData = _subscribers[type];
 
-                var didRemove = eventData.bindings.Remove(handle.bindingId);
-                if (!didRemove)
-                {
-                    eventData.pendingSubscriptions.RemoveAll(t => t.id == handle.bindingId);
-                }
+                eventData.Remove(eventData.bindings, handle.bindingId);
+                eventData.Remove(eventData.pendingSubscriptions, handle.bindingId);
 
                 if (eventData.bindings.Count == 0 &&
                     eventData.pendingSubscriptions.Count == 0)
@@ -125,6 +116,30 @@ namespace Events.Runtime
                     _subscribers.Remove(type);
                 }
             }
+        }
+
+        private void AddBinding(List<Binding> bindings, Binding binding)
+        {
+            // Binary search for insertion point
+            int index = bindings.BinarySearch(binding, new PriorityComparer());
+
+            if (index < 0)
+            {
+                index = ~index;
+            }
+
+            bindings.Insert(index, binding);
+        }
+
+        private void AddPending(EventData eventData)
+        {
+            // Add waiting subscriptions and clear queue
+            foreach (var binding in eventData.pendingSubscriptions)
+            {
+                AddBinding(eventData.bindings, binding);
+            }
+
+            eventData.pendingSubscriptions.Clear();
         }
 
         private void AddToHistory<T>(T e) where T : IEvent
