@@ -149,11 +149,12 @@ namespace Events.Runtime
                 return;
             }
 
-            History.Add(e);
             if (History.Count >= MaxHistoryCount)
             {
                 History.RemoveAt(0);
             }
+
+            History.Add(e);
         }
     }
 }

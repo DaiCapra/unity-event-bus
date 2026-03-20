@@ -4,5 +4,6 @@ namespace Events.Tests.Examples
 {
     public struct TestEvent : IEvent
     {
+        public int Id;
     }
 }

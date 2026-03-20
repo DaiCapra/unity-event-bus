@@ -90,6 +90,37 @@ namespace Events.Tests
             Assert.That(_eventBus.PendingSubscriberCount(), Is.EqualTo(0));
         }
 
+        [Test]
+        public void HistoryDoesNotExceedMaxCount()
+        {
+            _eventBus.MaxHistoryCount = 3;
+
+            _eventBus.Trigger<TestEvent>();
+            _eventBus.Trigger<TestEvent>();
+            _eventBus.Trigger<TestEvent>();
+            _eventBus.Trigger<TestEvent>();
+
+            Assert.That(_eventBus.History.Count, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void HistoryRemovesOldestWhenFull()
+        {
+            _eventBus.MaxHistoryCount = 2;
+
+            var first = new TestEvent { Id = 1 };
+            var second = new TestEvent { Id = 2 };
+            var third = new TestEvent { Id = 3 };
+
+            _eventBus.Trigger(first);
+            _eventBus.Trigger(second);
+            _eventBus.Trigger(third);
+
+            var history = _eventBus.GetHistory<TestEvent>();
+            Assert.That(history[0].Id, Is.EqualTo(2));
+            Assert.That(history[1].Id, Is.EqualTo(3));
+        }
+
         private void TestEventBusFoo(TestEvent obj)
         {
             _testA = true;
